@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>מצאו את הגוון</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:#12101f;font-family:'Segoe UI',Arial,sans-serif;color:#f2efff;touch-action:none;user-select:none}
+#wrap{height:100%;display:flex;flex-direction:column;align-items:center;max-width:440px;margin:0 auto;padding:8px}
+h1{font-size:24px;font-weight:800;background:linear-gradient(90deg,#f72585,#4cc9f0);-webkit-background-clip:text;background-clip:text;color:transparent}
+#hud{display:flex;gap:8px;margin:8px 0}
+.pill{background:#221e38;border-radius:20px;padding:5px 12px;font-size:13px;font-weight:700}
+#timeBar{height:8px;background:#221e38;border-radius:5px;width:min(92vw,400px);overflow:hidden;margin-bottom:8px}
+#timeFill{height:100%;background:linear-gradient(90deg,#06d6a0,#ffd60a);width:100%;border-radius:5px;transition:width .2s linear}
+#board{display:grid;gap:6px;width:min(92vw,400px);flex:0}
+.tile{border-radius:14%;cursor:pointer;transition:transform .08s;box-shadow:0 3px 8px rgba(0,0,0,.35)}
+.tile:active{transform:scale(.92)}
+#msg{min-height:24px;font-weight:700;color:#ffd60a;margin-top:8px;text-align:center}
+.ov{position:fixed;inset:0;background:rgba(10,8,20,.9);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;z-index:5;text-align:center;padding:20px}
+.ov h2{font-size:30px;background:linear-gradient(90deg,#f72585,#4cc9f0);-webkit-background-clip:text;background-clip:text;color:transparent}
+.ov p{font-size:16px;color:#cfc8ea;max-width:320px;line-height:1.5}
+.btn{background:linear-gradient(135deg,#f72585,#b5179e);color:#fff;border:none;padding:14px 38px;font-size:19px;font-weight:800;border-radius:40px;cursor:pointer;box-shadow:0 6px 22px rgba(247,37,133,.4)}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<div id="wrap">
+<h1>מצאו את הגוון</h1>
+<div id="hud">
+  <div class="pill" id="score">ניקוד: 0</div>
+  <div class="pill" id="round">שלב: 1</div>
+  <div class="pill" id="best">שיא: 0</div>
+</div>
+<div id="timeBar"><div id="timeFill"></div></div>
+<div id="board"></div>
+<div id="msg"></div>
+</div>
+<div class="ov" id="startOv">
+  <h2>מצאו את הגוון</h2>
+  <p>אחד הריבועים בגוון קצת שונה. מצאו אותו כמה שיותר פעמים לפני שהזמן נגמר. כל שלב קשה יותר!</p>
+  <button class="btn" id="startBtn">התחילו</button>
+</div>
+<div class="ov hidden" id="endOv">
+  <h2 id="endTitle">הזמן נגמר!</h2>
+  <p id="endText"></p>
+  <button class="btn" id="againBtn">עוד פעם</button>
+</div>
+<script>
+(function(){
+'use strict';
+var board=document.getElementById('board');
+var score=0,round=1,playing=false,timeLeft=60,timer=null,oddR=0,oddC=0,size=2;
+var best=+(localStorage.getItem('spot_best')||0);
+document.getElementById('best').textContent='שיא: '+best;
+function roundParams(){
+  size=Math.min(2+Math.floor((round-1)/2),8);
+  var delta=Math.max(30-round*1.2,7);
+  return {size:size,delta:delta};
+}
+function render(){
+  var p=roundParams();
+  var hue=Math.floor(Math.random()*360);
+  var sat=55+Math.random()*30,li=42+Math.random()*18;
+  var light=Math.random()<0.5;
+  var base='hsl('+hue+','+sat+'%,'+li+'%)';
+  var odd='hsl('+hue+','+sat+'%,'+(light?li+p.delta:li-p.delta)+'%)';
+  oddR=Math.floor(Math.random()*p.size);oddC=Math.floor(Math.random()*p.size);
+  board.style.gridTemplateColumns='repeat('+p.size+',1fr)';
+  board.innerHTML='';
+  var cell=Math.min(window.innerWidth*0.92,400)/p.size-6;
+  for(var r=0;r<p.size;r++)for(var c=0;c<p.size;c++){
+    (function(r2,c2){
+      var d=document.createElement('div');
+      d.className='tile';
+      d.style.width=cell+'px';d.style.height=cell+'px';
+      d.style.background=(r2===oddR&&c2===oddC)?odd:base;
+      d.addEventListener('touchstart',function(e){e.preventDefault();pick(r2,c2);},{passive:false});
+      d.addEventListener('mousedown',function(){pick(r2,c2);});
+      board.appendChild(d);
+    })(r,c);
+  }
+}
+function pick(r,c){
+  if(!playing)return;
+  if(r===oddR&&c===oddC){
+    score+=10+round;
+    round++;
+    timeLeft=Math.min(timeLeft+2.5,60);
+    document.getElementById('score').textContent='ניקוד: '+score;
+    document.getElementById('round').textContent='שלב: '+round;
+    document.getElementById('msg').textContent=['יפה!','מעולה!','עין חדה!','וואו!'][Math.floor(Math.random()*4)];
+    render();
+  }else{
+    timeLeft=Math.max(timeLeft-3,0);
+    document.getElementById('msg').textContent='לא זה... -3 שניות';
+  }
+}
+function tick(){
+  timeLeft-=0.2;
+  document.getElementById('timeFill').style.width=Math.max(0,timeLeft/60*100)+'%';
+  if(timeLeft<=5)document.getElementById('timeFill').style.background='#ff4d6d';
+  if(timeLeft<=0){endGame();}
+}
+function endGame(){
+  playing=false;clearInterval(timer);
+  var rec=false;
+  if(score>best){best=score;localStorage.setItem('spot_best',best);rec=true;}
+  document.getElementById('endText').textContent='הגעתם לשלב '+round+' עם '+score+' נקודות.'+(rec?' שיא חדש!':'');
+  document.getElementById('best').textContent='שיא: '+best;
+  document.getElementById('endOv').classList.remove('hidden');
+}
+function start(){
+  score=0;round=1;timeLeft=60;playing=true;
+  document.getElementById('score').textContent='ניקוד: 0';
+  document.getElementById('round').textContent='שלב: 1';
+  document.getElementById('msg').textContent='';
+  document.getElementById('timeFill').style.background='linear-gradient(90deg,#06d6a0,#ffd60a)';
+  document.getElementById('timeFill').style.width='100%';
+  render();
+  clearInterval(timer);timer=setInterval(tick,200);
+}
+document.getElementById('startBtn').addEventListener('click',function(){document.getElementById('startOv').classList.add('hidden');start();});
+document.getElementById('againBtn').addEventListener('click',function(){document.getElementById('endOv').classList.add('hidden');start();});
+render();
+})();
+</script>
+</body>
+</html>
